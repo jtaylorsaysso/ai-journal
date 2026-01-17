@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="description" content="A private, encrypted journaling app for mental health support">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <title>AI Journal</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="app-icon">🌙</span>
+                <h1 class="app-title">AI Journal</h1>
+            </div>
+            <nav class="header-nav">
+                <button id="btn-new-entry" class="nav-btn" aria-label="New Entry">
+                    <span class="icon">✏️</span>
+                </button>
+                <button id="btn-settings" class="nav-btn" aria-label="Settings">
+                    <span class="icon">⚙️</span>
+                </button>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Entry List View (default) -->
+            <section id="view-list" class="view active">
+                <div class="search-bar">
+                    <input type="search" id="search-input" placeholder="Search entries..." aria-label="Search entries">
+                </div>
+                <div id="entry-list" class="entry-list">
+                    <!-- Entries populated by JS -->
+                </div>
+                <div id="empty-state" class="empty-state hidden">
+                    <p class="empty-icon">📝</p>
+                    <p class="empty-text">No entries yet</p>
+                    <p class="empty-hint">Tap the ✏️ button to start journaling</p>
+                </div>
+            </section>
+
+            <!-- Entry Editor View -->
+            <section id="view-editor" class="view hidden">
+                <div class="mood-selector">
+                    <p class="mood-label">How are you feeling?</p>
+                    <div class="mood-options" role="radiogroup" aria-label="Mood selection">
+                        <button class="mood-btn" data-mood="1" aria-label="Very bad">😢</button>
+                        <button class="mood-btn" data-mood="2" aria-label="Bad">😕</button>
+                        <button class="mood-btn" data-mood="3" aria-label="Neutral">😐</button>
+                        <button class="mood-btn" data-mood="4" aria-label="Good">🙂</button>
+                        <button class="mood-btn" data-mood="5" aria-label="Very good">😊</button>
+                    </div>
+                    <button class="mood-dismiss" aria-label="Dismiss mood selector">Skip</button>
+                </div>
+                <div class="editor-container">
+                    <textarea id="entry-textarea" 
+                              placeholder="Write your thoughts..." 
+                              aria-label="Journal entry"></textarea>
+                </div>
+                <div class="editor-footer">
+                    <span id="word-count" class="word-count">0 words</span>
+                    <div class="editor-actions">
+                        <button id="btn-cancel" class="btn btn-secondary">Cancel</button>
+                        <button id="btn-save" class="btn btn-primary">Save ✓</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Entry Detail View -->
+            <section id="view-detail" class="view hidden">
+                <div class="detail-header">
+                    <button id="btn-back" class="nav-btn" aria-label="Back">←</button>
+                    <div class="detail-meta">
+                        <span id="detail-date" class="detail-date"></span>
+                        <span id="detail-mood" class="detail-mood"></span>
+                    </div>
+                    <div class="detail-actions">
+                        <button id="btn-edit" class="nav-btn" aria-label="Edit">✏️</button>
+                        <button id="btn-delete" class="nav-btn danger" aria-label="Delete">🗑️</button>
+                    </div>
+                </div>
+                <div id="detail-content" class="detail-content"></div>
+            </section>
+
+            <!-- Settings View -->
+            <section id="view-settings" class="view hidden">
+                <div class="settings-header">
+                    <button id="btn-settings-back" class="nav-btn" aria-label="Back">←</button>
+                    <h2>Settings</h2>
+                </div>
+                <div class="settings-list">
+                    <div class="setting-item">
+                        <label for="toggle-autosave">Auto-save entries</label>
+                        <input type="checkbox" id="toggle-autosave" class="toggle">
+                    </div>
+                    <div class="setting-item">
+                        <label for="toggle-theme">Dark mode</label>
+                        <input type="checkbox" id="toggle-theme" class="toggle" checked>
+                    </div>
+                    <hr class="setting-divider">
+                    <div class="setting-item">
+                        <button id="btn-export-json" class="btn btn-secondary full-width">
+                            Export as JSON
+                        </button>
+                    </div>
+                    <div class="setting-item">
+                        <button id="btn-export-text" class="btn btn-secondary full-width">
+                            Export as Text
+                        </button>
+                    </div>
+                    <hr class="setting-divider">
+                    <div class="setting-item danger-zone">
+                        <button id="btn-delete-all" class="btn btn-danger full-width">
+                            Delete All Data
+                        </button>
+                        <p class="setting-warning">This cannot be undone</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Offline Indicator -->
+        <div id="offline-banner" class="offline-banner hidden">
+            <span>📴 Offline - entries saved locally</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
