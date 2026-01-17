@@ -5,14 +5,14 @@
 
 const CACHE_NAME = 'ai-journal-v1';
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/css/styles.css',
-    '/js/app.js',
-    '/js/db.js',
-    '/js/crypto.js',
-    '/js/utils/export.js'
+    './',
+    './index.html',
+    './manifest.json',
+    './css/styles.css',
+    './js/app.js',
+    './js/db.js',
+    './js/crypto.js',
+    './js/utils/export.js'
 ];
 
 // Install - cache static assets
@@ -72,7 +72,7 @@ self.addEventListener('fetch', (event) => {
                     .catch(() => {
                         // Return offline fallback for navigation requests
                         if (request.mode === 'navigate') {
-                            return caches.match('/index.html');
+                            return caches.match('./index.html');
                         }
                         return new Response('Offline', { status: 503 });
                     });
