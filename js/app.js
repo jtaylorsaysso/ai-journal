@@ -14,15 +14,18 @@ import {
     setting
 } from './db.js';
 import { exportAsJSON, exportAsText } from './utils/export.js';
+import { register, login, logout, checkAuthStatus } from './api.js';
 
 // ===== State =====
 const state = {
-    currentView: 'list',
+    currentView: 'auth',
     currentEntryId: null,
     selectedMood: null,
     entries: [],
     autosaveEnabled: false,
-    autosaveTimer: null
+    autosaveTimer: null,
+    authenticated: false,
+    currentUser: null
 };
 
 // ===== Mood Mapping =====
@@ -41,6 +44,25 @@ const $$ = (selector) => document.querySelectorAll(selector);
 // ===== Initialization =====
 async function init() {
     try {
+        // Check authentication first
+        const authStatus = await checkAuthStatus();
+
+        if (!authStatus.authenticated) {
+            // Show auth view
+            showAuthView();
+            setupAuthListeners();
+            return;
+        }
+
+        // User is authenticated
+        state.authenticated = true;
+        state.currentUser = authStatus.user;
+
+        // Hide auth view, show app
+        $('#view-auth').classList.add('hidden');
+        $('.app-header').classList.remove('hidden');
+        $('#main-content').classList.remove('hidden');
+
         // Initialize database
         await initDB();
 
@@ -55,6 +77,7 @@ async function init() {
 
         // Set up event listeners
         setupEventListeners();
+        setupAuthListeners();
 
         // Load entries
         await loadEntries();
@@ -110,6 +133,41 @@ function setupEventListeners() {
     // Offline detection
     window.addEventListener('online', updateOfflineStatus);
     window.addEventListener('offline', updateOfflineStatus);
+}
+
+// ===== Authentication Event Listeners =====
+function setupAuthListeners() {
+    // Form toggle
+    $('#show-register')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        $('#login-form').classList.add('hidden');
+        $('#register-form').classList.remove('hidden');
+        $('#register-form').classList.add('active');
+        $('#login-form').classList.remove('active');
+    });
+
+    $('#show-login')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        $('#register-form').classList.add('hidden');
+        $('#login-form').classList.remove('hidden');
+        $('#login-form').classList.add('active');
+        $('#register-form').classList.remove('active');
+    });
+
+    // Login
+    $('#btn-login')?.addEventListener('click', handleLogin);
+    $('#login-pin')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+
+    // Register
+    $('#btn-register')?.addEventListener('click', handleRegister);
+    $('#register-pin-confirm')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleRegister();
+    });
+
+    // Logout
+    $('#btn-logout')?.addEventListener('click', handleLogout);
 }
 
 // ===== View Management =====
@@ -432,6 +490,98 @@ async function registerServiceWorker() {
             console.error('Service worker registration failed:', error);
         }
     }
+}
+
+// ===== Authentication Handlers =====
+function showAuthView() {
+    $('#view-auth').classList.remove('hidden');
+    $('.app-header').classList.add('hidden');
+    $('#main-content').classList.add('hidden');
+    state.currentView = 'auth';
+}
+
+async function handleLogin() {
+    const username = $('#login-username').value.trim();
+    const pin = $('#login-pin').value.trim();
+    const errorEl = $('#login-error');
+
+    errorEl.classList.add('hidden');
+
+    if (!username || !pin) {
+        errorEl.textContent = 'Please enter username and PIN';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+        errorEl.textContent = 'PIN must be 4-6 digits';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    const result = await login(username, pin);
+
+    if (!result.success) {
+        errorEl.textContent = result.error;
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    // Login successful - reload app
+    location.reload();
+}
+
+async function handleRegister() {
+    const username = $('#register-username').value.trim();
+    const pin = $('#register-pin').value.trim();
+    const pinConfirm = $('#register-pin-confirm').value.trim();
+    const errorEl = $('#register-error');
+
+    errorEl.classList.add('hidden');
+
+    if (!username || !pin || !pinConfirm) {
+        errorEl.textContent = 'Please fill in all fields';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (pin !== pinConfirm) {
+        errorEl.textContent = 'PINs do not match';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+        errorEl.textContent = 'PIN must be 4-6 digits';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (username.length < 3 || username.length > 20) {
+        errorEl.textContent = 'Username must be 3-20 characters';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    const result = await register(username, pin);
+
+    if (!result.success) {
+        errorEl.textContent = result.error;
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    // Registration successful - reload app
+    location.reload();
+}
+
+async function handleLogout() {
+    if (!confirm('Are you sure you want to logout?')) {
+        return;
+    }
+
+    await logout();
+    location.reload();
 }
 
 // ===== Utility Functions =====
