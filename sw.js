@@ -3,13 +3,14 @@
  * Provides offline support with cache-first strategy
  */
 
-const CACHE_NAME = 'ai-journal-v1';
+const CACHE_NAME = 'ai-journal-v2';
 const STATIC_ASSETS = [
     './',
     './index.html',
     './manifest.json',
     './css/styles.css',
     './js/app.js',
+    './js/api.js',
     './js/db.js',
     './js/crypto.js',
     './js/utils/export.js'
