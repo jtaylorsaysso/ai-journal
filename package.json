@@ -8,10 +8,10 @@
         "test:coverage": "vitest --coverage"
     },
     "devDependencies": {
-        "@vitest/coverage-v8": "^1.0.0",
-        "@vitest/ui": "^1.0.0",
+        "@vitest/coverage-v8": "^4.0.17",
+        "@vitest/ui": "^4.0.17",
         "fake-indexeddb": "^5.0.0",
-        "vitest": "^1.0.0"
+        "vitest": "^4.0.17"
     },
     "dependencies": {
         "jsdom": "^27.4.0"
