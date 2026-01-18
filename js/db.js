@@ -35,12 +35,33 @@ export async function initDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+            const error = request.error;
+            console.error('Failed to open database:', error);
+
+            if (error.name === 'QuotaExceededError') {
+                reject(new Error('Storage quota exceeded. Please free up space.'));
+            } else if (error.name === 'VersionError') {
+                reject(new Error('Database version conflict. Please refresh the page.'));
+            } else {
+                reject(new Error(`Failed to open database: ${error.message}`));
+            }
+        };
 
         request.onsuccess = async () => {
             db = request.result;
-            await initializeEncryptionKey();
-            resolve();
+
+            // Handle database errors
+            db.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+            };
+
+            try {
+                await initializeEncryptionKey();
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
         };
 
         request.onupgradeneeded = (event) => {
@@ -119,27 +140,41 @@ export async function saveEntry({ content, mood = null }) {
     const id = generateId();
     const now = new Date().toISOString();
 
-    // Encrypt the content
-    const { ciphertext, iv } = await encryptEntry(content, cryptoKey);
+    try {
+        // Encrypt the content
+        const { ciphertext, iv } = await encryptEntry(content, cryptoKey);
 
-    const entry = {
-        id,
-        encryptedContent: bufferToBase64(ciphertext),
-        iv: uint8ArrayToBase64(iv),
-        mood,
-        wordCount: content.split(/\s+/).filter(w => w.length > 0).length,
-        createdAt: now,
-        updatedAt: now
-    };
+        const entry = {
+            id,
+            encryptedContent: bufferToBase64(ciphertext),
+            iv: uint8ArrayToBase64(iv),
+            mood,
+            wordCount: content.split(/\s+/).filter(w => w.length > 0).length,
+            createdAt: now,
+            updatedAt: now
+        };
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORES.ENTRIES, 'readwrite');
-        const store = transaction.objectStore(STORES.ENTRIES);
-        const request = store.put(entry);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORES.ENTRIES, 'readwrite');
+            const store = transaction.objectStore(STORES.ENTRIES);
+            const request = store.put(entry);
 
-        request.onsuccess = () => resolve(entry);
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve(entry);
+            request.onerror = () => {
+                const error = request.error;
+                if (error.name === 'QuotaExceededError') {
+                    reject(new Error('Storage quota exceeded. Please delete some entries or export your data.'));
+                } else {
+                    reject(new Error(`Failed to save entry: ${error.message}`));
+                }
+            };
+        });
+    } catch (error) {
+        if (error.name === 'OperationError') {
+            throw new Error('Encryption failed. Your browser may not support the required crypto features.');
+        }
+        throw error;
+    }
 }
 
 /**
@@ -160,17 +195,18 @@ export async function getEntry(id) {
             }
 
             const entry = request.result;
-            const ciphertext = base64ToBuffer(entry.encryptedContent);
-            const iv = base64ToUint8Array(entry.iv);
 
             try {
+                const ciphertext = base64ToBuffer(entry.encryptedContent);
+                const iv = base64ToUint8Array(entry.iv);
                 const content = await decryptEntry(ciphertext, iv, cryptoKey);
                 resolve({ ...entry, content });
             } catch (error) {
-                reject(new Error('Failed to decrypt entry'));
+                console.error('Decryption error:', error);
+                reject(new Error('Failed to decrypt entry. The data may be corrupted.'));
             }
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(new Error(`Failed to retrieve entry: ${request.error.message}`));
     });
 }
 

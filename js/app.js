@@ -14,7 +14,8 @@ import {
     setting
 } from './db.js';
 import { exportAsJSON, exportAsText } from './utils/export.js';
-import { register, login, logout, checkAuthStatus } from './api.js';
+import { register, login, logout, checkAuthStatus, checkServerConnection } from './api.js';
+import { showError, showWarning, showInfo, showSuccess } from './utils/notifications.js';
 
 // ===== State =====
 const state = {
@@ -90,7 +91,9 @@ async function init() {
 
     } catch (error) {
         console.error('Failed to initialize app:', error);
-        alert('Failed to initialize the app. Please refresh the page.');
+        showError('Failed to initialize the app. Please refresh the page.', {
+            duration: 0  // Persistent error
+        });
     }
 }
 
@@ -131,8 +134,14 @@ function setupEventListeners() {
     $('#search-input').addEventListener('input', debounce(handleSearch, 300));
 
     // Offline detection
-    window.addEventListener('online', updateOfflineStatus);
-    window.addEventListener('offline', updateOfflineStatus);
+    window.addEventListener('online', () => {
+        updateOfflineStatus();
+        showSuccess('Back online!');
+    });
+    window.addEventListener('offline', () => {
+        updateOfflineStatus();
+        showWarning('You are offline. Some features may be limited.');
+    });
 }
 
 // ===== Authentication Event Listeners =====
@@ -312,7 +321,7 @@ async function saveCurrentEntry() {
     const content = $('#entry-textarea').value.trim();
 
     if (!content) {
-        alert('Please write something before saving.');
+        showWarning('Please write something before saving.');
         return;
     }
 
@@ -323,18 +332,26 @@ async function saveCurrentEntry() {
                 content,
                 mood: state.selectedMood
             });
+            showSuccess('Entry updated!');
         } else {
             // Create new
             await saveEntry({
                 content,
                 mood: state.selectedMood
             });
+            showSuccess('Entry saved!');
         }
 
         showView('list');
     } catch (error) {
         console.error('Failed to save entry:', error);
-        alert('Failed to save entry. Please try again.');
+        showError('Failed to save entry. Please try again.', {
+            action: {
+                id: 'retry-save',
+                label: 'Retry',
+                callback: saveCurrentEntry
+            }
+        });
     }
 }
 
@@ -359,10 +376,11 @@ async function deleteCurrentEntry() {
 
     try {
         await deleteEntry(state.currentEntryId);
+        showSuccess('Entry deleted');
         showView('list');
     } catch (error) {
         console.error('Failed to delete entry:', error);
-        alert('Failed to delete entry. Please try again.');
+        showError('Failed to delete entry. Please try again.');
     }
 }
 
@@ -460,10 +478,10 @@ async function confirmDeleteAll() {
         await deleteAllEntries();
         await loadEntries();
         showView('list');
-        alert('All entries have been deleted.');
+        showInfo('All entries have been deleted.');
     } catch (error) {
         console.error('Failed to delete all entries:', error);
-        alert('Failed to delete entries. Please try again.');
+        showError('Failed to delete entries. Please try again.');
     }
 }
 
