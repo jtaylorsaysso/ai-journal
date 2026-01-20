@@ -4,7 +4,7 @@ Handles user storage and authentication with PIN
 Supports both SQLite (development) and PostgreSQL (production)
 """
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 from urllib.parse import urlparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Optional, Dict
@@ -134,7 +134,7 @@ def create_user(username: str, pin: str) -> Optional[Dict]:
     
     try:
         pin_hash = generate_password_hash(pin, method='pbkdf2:sha256')
-        created_at = datetime.utcnow().isoformat()
+        created_at = datetime.now(UTC).isoformat()
         
         if _is_postgres():
             cursor.execute(

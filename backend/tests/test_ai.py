@@ -1,22 +1,19 @@
 """
-Tests for AI routes (with mocked Anthropic API)
+Tests for AI routes (with mocked Ollama LLM)
 """
 import pytest
 from unittest.mock import patch, MagicMock
 
 
 @pytest.fixture
-def mock_anthropic():
-    """Mock Anthropic client"""
-    with patch('routes.ai.get_anthropic_client') as mock:
+def mock_llm():
+    """Mock LLM client"""
+    with patch('routes.ai.get_llm_client') as mock:
         client = MagicMock()
         mock.return_value = client
         
-        # Mock message response
-        message = MagicMock()
-        message.content = [MagicMock(text='Mocked AI response')]
-        message.usage = MagicMock(input_tokens=10, output_tokens=20)
-        client.messages.create.return_value = message
+        # Mock simple text generation
+        client.generate.return_value = 'Mocked AI response'
         
         yield client
 
@@ -29,7 +26,7 @@ def test_prompt_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_prompt_success(auth_headers, mock_anthropic):
+def test_prompt_success(auth_headers, mock_llm):
     """Test successful prompt generation"""
     response = auth_headers.post('/api/ai/prompt', json={
         'mood': 3,
@@ -40,10 +37,9 @@ def test_prompt_success(auth_headers, mock_anthropic):
     data = response.get_json()
     assert 'prompt' in data
     assert data['prompt'] == 'Mocked AI response'
-    assert 'usage' in data
 
 
-def test_prompt_with_recent_entries(auth_headers, mock_anthropic):
+def test_prompt_with_recent_entries(auth_headers, mock_llm):
     """Test prompt with recent entries context"""
     response = auth_headers.post('/api/ai/prompt', json={
         'mood': 2,
@@ -63,10 +59,10 @@ def test_analyze_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_analyze_success(auth_headers, mock_anthropic):
+def test_analyze_success(auth_headers, mock_llm):
     """Test successful entry analysis"""
     # Mock JSON response
-    mock_anthropic.messages.create.return_value.content[0].text = '''{
+    mock_llm.generate.return_value = '''{
         "reflection": "You seem thoughtful today",
         "themes": ["reflection", "growth"],
         "follow_up": "What would help you move forward?",
@@ -116,10 +112,10 @@ def test_patterns_requires_minimum_entries(auth_headers):
     assert 'error' in data
 
 
-def test_patterns_success(auth_headers, mock_anthropic):
+def test_patterns_success(auth_headers, mock_llm):
     """Test successful pattern analysis"""
     # Mock JSON response
-    mock_anthropic.messages.create.return_value.content[0].text = '''{
+    mock_llm.generate.return_value = '''{
         "mood_trend": "improving",
         "themes": ["work", "relationships"],
         "positive_patterns": ["regular exercise"],

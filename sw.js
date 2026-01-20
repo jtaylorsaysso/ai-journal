@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
     './css/styles.css',
     './js/app.js',
     './js/api.js',
+    './js/ai.js',
     './js/db.js',
     './js/crypto.js',
     './js/utils/export.js',
@@ -131,6 +132,8 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
 
     // Only handle same-origin requests
+    // Note: API requests to different port (e.g., :5000) are cross-origin
+    // and will bypass this handler. Error handling happens in api.js instead.
     if (url.origin !== location.origin) {
         return;
     }

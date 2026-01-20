@@ -15,9 +15,16 @@ class Config:
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     # CORS settings
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,https://*.github.io').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:8420').split(',')
     
-    # Anthropic API
+    # Ollama LLM Settings
+    OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'phi3:mini')
+    OLLAMA_TIMEOUT = int(os.environ.get('OLLAMA_TIMEOUT', '60'))
+    OLLAMA_MAX_RETRIES = int(os.environ.get('OLLAMA_MAX_RETRIES', '3'))
+    OLLAMA_RETRY_DELAY = float(os.environ.get('OLLAMA_RETRY_DELAY', '1.0'))
+    
+    # Anthropic API (legacy, not used with Ollama)
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     ANTHROPIC_MODEL = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514')
     
@@ -34,6 +41,9 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 86400  # 24 hours in seconds
+
+    # Development-specific CORS (allow all origins for LAN testing)
+    ALLOW_ALL_ORIGINS = os.environ.get('ALLOW_ALL_ORIGINS', 'False').lower() == 'true'
 
 
 class DevelopmentConfig(Config):

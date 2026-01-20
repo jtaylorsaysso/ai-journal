@@ -1,6 +1,6 @@
 # AI Journal Backend
 
-Flask backend for AI-assisted journaling with Claude API integration.
+Flask backend for AI-assisted journaling with **Ollama** local LLM integration.
 
 ## Setup
 
@@ -21,7 +21,18 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Edit .env - Ollama settings are pre-configured for localhost
+```
+
+1. **Ensure Ollama is running**:
+
+```bash
+# Check Ollama status
+curl http://localhost:11434/api/tags
+
+# If not installed, visit: https://ollama. com
+# Pull the default model
+ollama pull phi3:mini
 ```
 
 1. Run development server:
@@ -34,13 +45,24 @@ Server will run on `http://localhost:5000`
 
 ## API Endpoints
 
+> **Note**: AI endpoints now use **Ollama** for local LLM inference instead of Anthropic Claude.
+
 ### Health Check
 
 ```
 GET /health
 ```
 
-### AI Prompting
+### Authentication
+
+```
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/status
+```
+
+### AI Prompting (Ollama)
 
 ```
 POST /api/ai/prompt
@@ -53,7 +75,7 @@ Content-Type: application/json
 }
 ```
 
-### Entry Analysis
+### Entry Analysis (Ollama)
 
 ```
 POST /api/ai/analyze
@@ -65,7 +87,7 @@ Content-Type: application/json
 }
 ```
 
-### Pattern Analysis
+### Pattern Analysis (Ollama)
 
 ```
 POST /api/ai/patterns
@@ -79,9 +101,25 @@ Content-Type: application/json
 }
 ```
 
+## Ollama Configuration
+
+Default model: **phi3:mini** (3.8B parameters)
+
+Available models on your system:
+
+- `phi3:mini` (recommended) - Best balance
+- `granite3.2:2b` - Faster alternative
+- `qwen2.5:1.5b` - Fastest, for testing
+
+To change model, update `.env`:
+
+```bash
+OLLAMA_MODEL=granite3.2:2b
+```
+
 ## Rate Limiting
 
-- 50 requests per hour per IP (configurable)
+- 20 requests per hour per IP (configurable)
 - Disabled in development by default
 
 ## Security Notes
@@ -89,4 +127,3 @@ Content-Type: application/json
 - Never commit `.env` file
 - Use strong `SECRET_KEY` in production
 - Configure CORS origins appropriately
-- Monitor API usage to prevent cost overruns

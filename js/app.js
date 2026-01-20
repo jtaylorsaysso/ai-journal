@@ -16,6 +16,7 @@ import {
 import { exportAsJSON, exportAsText } from './utils/export.js';
 import { register, login, logout, checkAuthStatus, checkServerConnection } from './api.js';
 import { showError, showWarning, showInfo, showSuccess } from './utils/notifications.js';
+import { generatePrompt, analyzeEntry } from './ai.js';
 
 // ===== State =====
 const state = {
@@ -108,6 +109,7 @@ function setupEventListeners() {
     // Editor
     $('#btn-cancel').addEventListener('click', cancelEdit);
     $('#btn-save').addEventListener('click', saveCurrentEntry);
+    $('#btn-ai-prompt').addEventListener('click', handleAIPrompt);
     $('#entry-textarea').addEventListener('input', handleTextInput);
 
     // Mood selector
@@ -436,6 +438,60 @@ function scheduleAutosave() {
             console.error('Autosave failed:', error);
         }
     }, 30000); // 30 seconds
+}
+
+// ===== AI Features =====
+async function handleAIPrompt() {
+    const btn = $('#btn-ai-prompt');
+    const originalText = btn.innerHTML;
+
+    try {
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Generating...</span>';
+
+        const currentText = $('#entry-textarea').value.trim();
+        const mood = state.selectedMood;
+
+        // Get recent entries for context (just previews)
+        const recentThemes = state.entries.slice(0, 3).map(e => e.preview);
+
+        const result = await generatePrompt({
+            mood,
+            currentText,
+            recentEntries: recentThemes
+        });
+
+        if (!result.success) {
+            showError(result.error || 'Failed to generate prompt');
+            return;
+        }
+
+        // Show prompt to user
+        const usePrompt = confirm(`AI Suggestion:\n\n"${result.prompt}"\n\nWould you like to use this as a starting point?`);
+
+        if (usePrompt) {
+            const textarea = $('#entry-textarea');
+            if (currentText) {
+                // Append prompt if there's existing text
+                textarea.value = currentText + '\n\n' + result.prompt;
+            } else {
+                // Use as starting text
+                textarea.value = result.prompt;
+            }
+            updateWordCount(textarea.value);
+            textarea.focus();
+            showSuccess('Prompt added! Start writing.');
+        }
+
+    } catch (error) {
+        console.error('AI prompt error:', error);
+        showError('Failed to generate prompt. Please try again.');
+    } finally {
+        // Reset button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
 }
 
 // ===== Search =====

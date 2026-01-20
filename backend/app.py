@@ -13,7 +13,10 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
     
     # Enable CORS with credentials support
-    CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
+    if app.config.get('ALLOW_ALL_ORIGINS'):
+        CORS(app, origins='*', supports_credentials=True)
+    else:
+        CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
     
     # Initialize Flask-Login
     login_manager = LoginManager()

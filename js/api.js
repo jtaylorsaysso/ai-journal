@@ -3,10 +3,32 @@
  * Enhanced with retry logic, timeout handling, and better error messages
  */
 
-// Auto-detect API base URL based on environment
-const API_BASE = window.location.origin.includes('localhost')
-    ? 'http://localhost:5000/api'
-    : `${window.location.origin}/api`;
+// Backend server configuration
+// Detect backend URL based on environment to support LAN and Production
+function getBackendURL() {
+    const hostname = window.location.hostname;
+
+    // Production (Render.com or similar)
+    if (hostname.includes('onrender.com') || hostname.includes('github.io')) {
+        // Use same hostname, HTTPS, default port (443 implies no port in URL)
+        return `https://${hostname.replace('.github.io', '.onrender.com')}/api`;
+    }
+
+    // Local development (localhost/127.0.0.1)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+    }
+
+    // LAN access - use same IP as frontend, but port 5000
+    return `http://${hostname}:5000/api`;
+}
+
+export const API_BASE = getBackendURL();
+
+// Make retry utilities available to other modules
+export { fetchWithRetry, fetchWithTimeout };
+
+// Configuration
 
 // Configuration
 const RETRY_CONFIG = {
@@ -122,7 +144,7 @@ function getErrorMessage(error, response = null) {
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<Response>}
  */
-async function fetchWithTimeout(url, options = {}, timeout = RETRY_CONFIG.timeout) {
+export async function fetchWithTimeout(url, options = {}, timeout = RETRY_CONFIG.timeout) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -145,7 +167,7 @@ async function fetchWithTimeout(url, options = {}, timeout = RETRY_CONFIG.timeou
  * @param {Object} options - Fetch options
  * @returns {Promise<Response>}
  */
-async function fetchWithRetry(url, options = {}) {
+export async function fetchWithRetry(url, options = {}) {
     let lastError = null;
     let lastResponse = null;
 

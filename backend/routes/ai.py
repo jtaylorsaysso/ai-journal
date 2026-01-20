@@ -1,11 +1,12 @@
 """
-AI Integration Routes - Claude API for prompting and analysis
+AI Integration Routes - Ollama LLM for prompting and analysis
 """
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
-from anthropic import Anthropic
+from llm_client import get_llm_client
 from functools import wraps
 import time
+import json
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -42,14 +43,6 @@ def rate_limit(f):
     return decorated_function
 
 
-def get_anthropic_client():
-    """Get configured Anthropic client"""
-    api_key = current_app.config['ANTHROPIC_API_KEY']
-    if not api_key:
-        raise ValueError('ANTHROPIC_API_KEY not configured')
-    return Anthropic(api_key=api_key)
-
-
 @ai_bp.route('/prompt', methods=['POST'])
 @login_required
 @rate_limit
@@ -70,7 +63,7 @@ def get_prompt():
         recent_entries = data.get('recent_entries', [])[:3]  # Limit to 3
         current_text = data.get('current_text', '')
         
-        # Build context for Claude
+        # Build context for LLM
         system_prompt = """You are a compassionate journaling assistant. Your role is to:
 - Ask thoughtful, open-ended questions that encourage self-reflection
 - Use evidence-based techniques from CBT and positive psychology
@@ -92,29 +85,24 @@ Respond with a single, thoughtful prompt or question (1-2 sentences max)."""
         if recent_entries:
             user_context += f". Recent themes: {', '.join(recent_entries[:2])}"
         
-        # Call Claude API
-        client = get_anthropic_client()
-        message = client.messages.create(
-            model=current_app.config['ANTHROPIC_MODEL'],
-            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+        # Call LLM
+        client = get_llm_client(current_app.config)
+        prompt_text = client.generate(
+            prompt=user_context,
             system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_context}
-            ]
+            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+            temperature=0.7
         )
         
-        prompt_text = message.content[0].text
-        
         return jsonify({
-            'prompt': prompt_text,
-            'usage': {
-                'input_tokens': message.usage.input_tokens,
-                'output_tokens': message.usage.output_tokens
-            }
+            'prompt': prompt_text
         })
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 500
+    except RuntimeError as e:
+        current_app.logger.error(f'Ollama error: {str(e)}')
+        return jsonify({'error': 'AI service unavailable. Please ensure Ollama is running.'}), 503
     except Exception as e:
         current_app.logger.error(f'Error generating prompt: {str(e)}')
         return jsonify({'error': 'Failed to generate prompt'}), 500
@@ -163,40 +151,36 @@ Format your response as JSON:
         if mood:
             user_message += f"\n\nReported mood: {mood}/5"
         
-        # Call Claude API
-        client = get_anthropic_client()
-        message = client.messages.create(
-            model=current_app.config['ANTHROPIC_MODEL'],
-            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+        # Call LLM
+        client = get_llm_client(current_app.config)
+        response_text = client.generate(
+            prompt=user_message,
             system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_message}
-            ]
+            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+            temperature=0.7
         )
         
         # Parse response
-        import json
         try:
-            analysis = json.loads(message.content[0].text)
+            analysis = json.loads(response_text)
         except json.JSONDecodeError:
-            # Fallback if Claude doesn't return valid JSON
+            # Fallback if LLM doesn't return valid JSON
             analysis = {
-                "reflection": message.content[0].text,
+                "reflection": response_text,
                 "themes": [],
                 "follow_up": "",
                 "crisis_detected": False
             }
         
         return jsonify({
-            'analysis': analysis,
-            'usage': {
-                'input_tokens': message.usage.input_tokens,
-                'output_tokens': message.usage.output_tokens
-            }
+            'analysis': analysis
         })
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 500
+    except RuntimeError as e:
+        current_app.logger.error(f'Ollama error: {str(e)}')
+        return jsonify({'error': 'AI service unavailable. Please ensure Ollama is running.'}), 503
     except Exception as e:
         current_app.logger.error(f'Error analyzing entry: {str(e)}')
         return jsonify({'error': 'Failed to analyze entry'}), 500
@@ -227,7 +211,7 @@ def analyze_patterns():
         # Limit to last 10 entries
         entries = entries[-10:]
         
-        # Build summary for Claude
+        # Build summary for LLM
         entry_summaries = []
         for i, entry in enumerate(entries, 1):
             summary = f"Entry {i} (mood: {entry.get('mood', 'N/A')}/5): {entry['content'][:150]}..."
@@ -251,21 +235,18 @@ Format as JSON:
         
         user_message = "Analyze these journal entries for patterns:\n\n" + "\n\n".join(entry_summaries)
         
-        # Call Claude API
-        client = get_anthropic_client()
-        message = client.messages.create(
-            model=current_app.config['ANTHROPIC_MODEL'],
-            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+        # Call LLM
+        client = get_llm_client(current_app.config)
+        response_text = client.generate(
+            prompt=user_message,
             system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_message}
-            ]
+            max_tokens=current_app.config['MAX_RESPONSE_TOKENS'],
+            temperature=0.7
         )
         
         # Parse response
-        import json
         try:
-            patterns = json.loads(message.content[0].text)
+            patterns = json.loads(response_text)
         except json.JSONDecodeError:
             patterns = {
                 "mood_trend": "Unable to determine",
@@ -275,15 +256,14 @@ Format as JSON:
             }
         
         return jsonify({
-            'patterns': patterns,
-            'usage': {
-                'input_tokens': message.usage.input_tokens,
-                'output_tokens': message.usage.output_tokens
-            }
+            'patterns': patterns
         })
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 500
+    except RuntimeError as e:
+        current_app.logger.error(f'Ollama error: {str(e)}')
+        return jsonify({'error': 'AI service unavailable. Please ensure Ollama is running.'}), 503
     except Exception as e:
         current_app.logger.error(f'Error analyzing patterns: {str(e)}')
         return jsonify({'error': 'Failed to analyze patterns'}), 500
